@@ -44,11 +44,27 @@ Soft references (documented, used as concept pointers):
 
 ## Install
 
+### Option A — Direct clone (works today)
+
+Until this plugin lands in a marketplace, clone it directly into your user plugins directory:
+
+```bash
+# superpowers first (if not already installed)
+/plugin install obra/superpowers
+
+# then this plugin via direct clone
+git clone https://github.com/narwhalishus/superpowered-teams ~/.claude/plugins/user/superpowered-teams
 ```
-# in a Claude Code conversation
-/plugin install obra/superpowers              # if not already installed
+
+Restart Claude Code (or start a new conversation) — the skill loader will pick up the new plugin automatically.
+
+### Option B — Marketplace install (when available)
+
+```
 /plugin install narwhalishus/superpowered-teams
 ```
+
+A PR to the `claude-plugins-official` marketplace is planned. Until it lands, use Option A.
 
 ### Required post-install step
 
