@@ -1,0 +1,19 @@
+{
+  "name": "superpowered-teams",
+  "description": "Parallel team execution for superpowers plans via Claude Code Agent Teams. Adds a team fitness check at plan time and a persistent-specialist orchestrator at execution time.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Bryan Yao"
+  },
+  "homepage": "https://github.com/narwhalishus/superpowered-teams",
+  "repository": "https://github.com/narwhalishus/superpowered-teams",
+  "license": "MIT",
+  "keywords": [
+    "superpowers",
+    "agent-teams",
+    "parallel",
+    "workflow",
+    "planning",
+    "tdd"
+  ]
+}
