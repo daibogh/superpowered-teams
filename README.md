@@ -114,7 +114,7 @@ Read the skill files directly for the full behavior spec:
 
 ## Background
 
-Built May 2026 using Claude Code's Agent Teams primitives, drawing on [bok-'s community swarm skills](https://github.com/obra/superpowers/issues/429) as prior art. See the [design spec](https://github.com/narwhalishus/superpowered-teams/blob/main/docs/design-spec.md) (if published) for the full rationale behind the hybrid task-assignment flow, two-stage review, and S3 lifetime policy.
+Built May 2026 using Claude Code's Agent Teams primitives, drawing on [bok-'s community swarm skills](https://github.com/obra/superpowers/issues/429) as prior art. See [`docs/design-spec.md`](./docs/design-spec.md) for the full rationale behind the hybrid task-assignment flow, two-stage review asymmetry, S3 lifetime policy, and why this couldn't live in upstream superpowers.
 
 ## License
 
