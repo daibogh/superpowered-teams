@@ -64,7 +64,7 @@ Restart Claude Code (or start a new conversation) — the skill loader will pick
 /plugin install superpowered-teams@claude-plugins-official
 ```
 
-A submission to the `claude-plugins-official` marketplace is in review (via Anthropic's [plugin submission form](https://claude.ai/settings/plugins/submit)). Until it lands, use Option A.
+Not yet submitted to the `claude-plugins-official` marketplace. Use Option A for now.
 
 ### Required post-install step
 
