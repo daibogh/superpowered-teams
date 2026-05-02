@@ -61,10 +61,10 @@ Restart Claude Code (or start a new conversation) — the skill loader will pick
 ### Option B — Marketplace install (when available)
 
 ```
-/plugin install narwhalishus/superpowered-teams
+/plugin install superpowered-teams@claude-plugins-official
 ```
 
-A PR to the `claude-plugins-official` marketplace is planned. Until it lands, use Option A.
+A submission to the `claude-plugins-official` marketplace is in review (via Anthropic's [plugin submission form](https://claude.ai/settings/plugins/submit)). Until it lands, use Option A.
 
 ### Required post-install step
 
