@@ -67,7 +67,13 @@ Agent tool:
     3. Run tests and verify they pass.
     4. Commit your work with a clear message.
     5. Self-review (see checklist below).
-    6. Send completion report via SendMessage to team-lead.
+    6. Write the Completion Report into the task description (see
+       "Reporting Completion" below) — this is what the lead reads,
+       not your SendMessage body.
+    7. Set the metadata flags that trigger reviewer dispatch
+       (`report_ready: true`, `status_code`, `concerns` if applicable).
+    8. SendMessage the lead a one-line notification ("Task <ID> ready
+       for review.") — no body content, no quoted text.
 
     **While working:** If you hit something unexpected, send a SendMessage
     to the lead. Don't guess or assume about unclear requirements.
@@ -82,13 +88,16 @@ Agent tool:
 
     Fix anything you find before reporting.
 
-    ## Completion Report Format (Mandatory)
+    ## Reporting Completion (Mandatory — Three Steps)
 
-    **You are not done until the lead receives this message. Committing
-    and going idle is not "done" — a commit without a report looks like
-    a stalled teammate to the lead. Always SendMessage.**
+    **You are not done until all three steps below are complete.
+    Committing and going idle is not "done".**
 
-    SendMessage to team-lead with:
+    ### Step 1: Write the Completion Report into the task description
+
+    Read the current task with TaskGet, then TaskUpdate description: with
+    the original task text concatenated with this report block, separated
+    by `\n\n---\n## Completion Report\n\n`:
 
     ```
     Status: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
@@ -111,8 +120,45 @@ Agent tool:
     Questions: <if NEEDS_CONTEXT>
     ```
 
+    The lead reads this from the task description, not from your message.
+    Never call TaskUpdate description: with just the report block — that
+    destroys the original task content. Always concatenate.
+
+    ### Step 2: Set the metadata flags
+
+    TaskUpdate metadata: with:
+    - `report_ready: true`
+    - `status_code: "DONE"` (or DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED)
+    - `concerns: [<list>]` only if status_code is DONE_WITH_CONCERNS
+
+    These flags are what the lead's dispatch logic reads. The flag — not
+    the prose `Status: DONE` line — triggers reviewer dispatch.
+
+    ### Step 3: Notify the lead
+
+    SendMessage to team-lead with a one-line summary:
+
+    ```
+    {to: "team-lead", summary: "Task N ready for review",
+     message: "Task N ready for review."}
+    ```
+
+    **Do NOT** include the report body in the message. Do NOT quote prior
+    messages from the lead or reviewers. The lead has all of that already
+    via TaskGet — duplicating it here causes message-echo loops that make
+    the lead re-dispatch reviewers on stale state.
+
     Do NOT mark the task completed yourself — the lead does that after
-    reviews pass.
+    both review stages pass.
+
+    ## Quote Discipline (Echo Defense)
+
+    When replying to any message from the lead or another teammate:
+    - Do NOT quote or paraphrase the message you're replying to.
+    - Reply with new content only. The lead already has the prior message
+      rendered in their inbox — quoting it back makes it appear twice.
+    - If you need to reference something prior, link by task ID or commit
+      SHA, not by quoting prose.
 
     ## Handling Duplicate or Late Deliveries
 
@@ -149,8 +195,13 @@ Agent tool:
     2. Make targeted fixes. Don't re-implement from scratch.
     3. Re-run tests.
     4. Commit the fix with a clear message.
-    5. Report back via SendMessage with updated Status block. Journal
-       block only needs updating if files/exports changed.
+    5. Update the Completion Report block in the task description if
+       files/exports changed (TaskGet → edit the report block in place
+       → TaskUpdate description:). Otherwise leave it.
+    6. Re-set `metadata.report_ready: true` (the lead cleared it when
+       forwarding the review feedback).
+    7. SendMessage the lead a one-line "Task N fixes ready" notification.
+       Do NOT quote the reviewer's report back.
 
     ## Handling New Task Assignments via SendMessage
 
@@ -244,16 +295,7 @@ SendMessage:
 ## Notes on Tool Invocation
 
 - Tool-call examples in this file use YAML-style pseudocode for readability. Actual invocations encode parameters as JSON; the `|` pipe scalar in `prompt:` is illustrative of multi-line content, not literal syntax.
-- `team_name` on the `Agent` tool is what flips a spawn from "one-shot subagent" into "persistent teammate." Omit it for reviewers.
+- `team_name` on the `Agent` tool flips a spawn from "one-shot subagent" into "persistent teammate." Omit it for reviewers.
 - `name` on the `Agent` tool is how you and the specialist will address each other in `SendMessage`. Match it to the plan's role name exactly.
-- The lead's addressable name in `SendMessage.to` from teammates is `team-lead` (matches the default Agent Teams convention). Teammates should address the lead using this name.
-- `SendMessage` parameter names are `to`, `summary`, `message`. The `message` field can be a plain string or a structured object.
-- When sending a shutdown request, the structure is:
-  ```
-  SendMessage:
-    to: <role>
-    message:
-      type: shutdown_request
-      reason: "<optional reason>"
-  ```
-  The `summary` field is not required when `message` is a structured object.
+- The lead's addressable name is `team-lead`. Teammates use this for `SendMessage.to` when messaging the lead.
+- For full `SendMessage` semantics (string vs structured `message`, `summary` requirements, `shutdown_request` / `plan_approval_response` envelopes), refer to the live `SendMessage` tool description — it's authoritative and kept in sync with the platform. Don't duplicate that contract here.

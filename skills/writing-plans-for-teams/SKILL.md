@@ -170,6 +170,7 @@ git commit -m "feat(shared): add UserPreferencesSchema"
 - **`Specialist:`** — role name. Must match a Specialists table row exactly.
 - **`Depends on:`** — either `None` or explicit task references with what's produced. Example: `Task 1 (Zod schemas at packages/shared/src/schemas/)`. Lead reads these to set `addBlockedBy` on `TaskCreate`.
 - **`Produces:`** — what this task creates that later tasks consume. Goes into the teammate's journal entry on completion.
+- **`Plan approval required:`** — `true` or `false` (omit if false). Set `true` when the task touches schema migrations, destructive operations, auth/session logic, or refactors >5 files. The lead spawns these teammates in plan-approval mode; they must propose an approach via `plan_approval_request` before writing code. See `agent-team-driven-development` § Plan Approval for Risky Tasks.
 
 ## Bite-Sized Task Granularity
 

@@ -64,8 +64,8 @@ Two user-level skills installed at `~/.claude/skills/`:
 | Lead | 1 | Main session | Session lifetime | Opus 4.7-1M |
 | Specialist implementer | 1–3 simultaneous | `Agent` tool with `team_name` + `name` | S3: spawn-per-wave default, upgrade to full-session if ≥2 waves of work | Opus 4.7-1M |
 | Spec reviewer | Per task | `Agent` tool, no `team_name` | One-shot | Opus 4.7-1M |
-| Code quality reviewer | Per task | `Agent` tool, `subagent_type: superpowers:code-reviewer` | One-shot | Opus 4.7-1M |
-| Final cross-cutting reviewer | 1 | `Agent` tool, `subagent_type: superpowers:code-reviewer` | One-shot at completion | Opus 4.7-1M |
+| Code quality reviewer | Per task | `Agent` tool, `subagent_type: superpowered-teams:code-reviewer` | One-shot | Opus 4.7-1M |
+| Final cross-cutting reviewer | 1 | `Agent` tool, `subagent_type: superpowered-teams:code-reviewer` | One-shot at completion | Opus 4.7-1M |
 
 **Key asymmetry:** Implementers are teammates (persistent, survive across waves, remember codebase); reviewers are subagents (fresh context, no accumulated bias from watching code get written). This mirrors bok's original insight.
 
@@ -263,7 +263,7 @@ Lead waits for idle notifications — does not poll.
 ### Phase 4 — Completion
 
 1. All tasks `completed` and reviewed.
-2. Dispatch final cross-cutting reviewer (`superpowers:code-reviewer` subagent) with base-SHA-to-head-SHA diff.
+2. Dispatch final cross-cutting reviewer (`superpowered-teams:code-reviewer` subagent) with base-SHA-to-head-SHA diff.
 3. Write `docs/superpowers/plans/<plan-slug>.journal.md` by extracting journal blocks from completed task descriptions in order. **`TeamDelete` blocked until this file exists.**
 4. Shutdown live teammates via `SendMessage {type: "shutdown_request"}`.
 5. `TeamDelete` after all teammates idle-terminate.
@@ -437,7 +437,7 @@ Lead maintains mental model of wave boundaries from the plan's Wave Analysis. Be
 
 **Invoked as sub-skills:**
 - `superpowers:test-driven-development` → implementer prompts reference this
-- `superpowers:code-reviewer` agent → used for code quality review and final review
+- `superpowered-teams:code-reviewer` agent → used for code quality review and final review
 - `superpowers:requesting-code-review` → reviewer methodology reference
 
 **Downstream:**

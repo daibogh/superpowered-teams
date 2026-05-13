@@ -33,7 +33,6 @@ The fitness gate makes the choice automatic. You don't have to decide.
 
 `superpowered-teams` is a superpowers extension. It invokes:
 
-- `superpowers:code-reviewer` agent — both review stages and final cross-cutting review
 - `superpowers:writing-plans` — fallback when fitness check fails
 - `superpowers:subagent-driven-development` — target of the fallback handoff for executors
 - `superpowers:finishing-a-development-branch` — post-team completion handoff
@@ -41,6 +40,8 @@ The fitness gate makes the choice automatic. You don't have to decide.
 Soft references (documented, used as concept pointers):
 
 - `superpowers:brainstorming`, `superpowers:using-git-worktrees`, `superpowers:test-driven-development`, `superpowers:requesting-code-review`
+
+Code quality review (per task and final) uses this plugin's own `superpowered-teams:code-reviewer` agent — no superpowers dependency for review.
 
 ## Install
 
@@ -105,8 +106,8 @@ Before `writing-plans-for-teams` writes any tasks, it evaluates:
 | Lead (you) | 1 | Session | Main session |
 | Specialist implementer | 1–3 simultaneous | Spawn-per-wave default, full-session if ≥2 waves of work (decided at plan time in the Lifetime Plan) | `Agent` tool with `team_name` + `name` |
 | Spec compliance reviewer | Per task | One-shot | `Agent` tool (subagent, no `team_name`) |
-| Code quality reviewer | Per task | One-shot | `Agent` tool with `subagent_type: superpowers:code-reviewer` |
-| Final cross-cutting reviewer | 1 at completion | One-shot | `Agent` tool with `subagent_type: superpowers:code-reviewer` |
+| Code quality reviewer | Per task | One-shot | `Agent` tool with `subagent_type: superpowered-teams:code-reviewer` |
+| Final cross-cutting reviewer | 1 at completion | One-shot | `Agent` tool with `subagent_type: superpowered-teams:code-reviewer` |
 
 **Implementers are teammates** (persistent, remember the codebase across tasks, communicate via `SendMessage`). **Reviewers are subagents** (fresh context, no bias from watching code get written). The asymmetry is deliberate — it's the main reason this flow produces better reviews than single-role variants.
 

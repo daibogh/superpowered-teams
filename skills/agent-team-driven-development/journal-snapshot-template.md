@@ -63,7 +63,7 @@ None.
 
 ## Final Cross-Cutting Review
 
-**Reviewer:** superpowers:code-reviewer (final)
+**Reviewer:** superpowered-teams:code-reviewer (final)
 **Outcome:** APPROVED | ISSUES ADDRESSED (with details)
 **Notes:** <reviewer's summary — paste the final reviewer's findings directly, as there is no separate report file>
 ```

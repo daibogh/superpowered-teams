@@ -31,8 +31,8 @@ Execute a team-format plan by orchestrating a team of persistent teammates (Agen
 | Lead (you) | 1 | Main session | Session | Opus 4.7-1M |
 | Implementation teammate | 1–3 simultaneous | `Agent` tool with `team_name` + `name` | Spawn-per-wave default, upgrade to full-session if ≥2 waves of work | Opus 4.7-1M |
 | Spec reviewer | Per task | `Agent` tool, no `team_name` | One-shot | Opus 4.7-1M |
-| Code quality reviewer | Per task | `Agent` tool, `subagent_type: superpowers:code-reviewer` | One-shot | Opus 4.7-1M |
-| Final cross-cutting reviewer | 1 | `Agent` tool, `subagent_type: superpowers:code-reviewer` | One-shot at completion | Opus 4.7-1M |
+| Code quality reviewer | Per task | `Agent` tool, `subagent_type: superpowered-teams:code-reviewer` | One-shot | Opus 4.7-1M |
+| Final cross-cutting reviewer | 1 | `Agent` tool, `subagent_type: superpowered-teams:code-reviewer` | One-shot at completion | Opus 4.7-1M |
 
 Implementation teammates are persistent (survive across waves, remember codebase). Reviewers are one-shot subagents (fresh context, no bias from watching code get written). The asymmetry is deliberate.
 
@@ -48,6 +48,16 @@ A few patterns repeat across the skill:
 - **`SendMessage` with text:** Prose messages pass `message:` as a string and include a `summary:` (5–10 words, shown in the UI).
 - **`Agent` tool with `team_name`:** Spawns a persistent teammate. Omit `team_name` to spawn a one-shot subagent (reviewers).
 - **Teammate names:** Addressed by `name` (not `agentId`) throughout — in `SendMessage.to`, in `TaskUpdate owner:`, and in team discovery via `~/.claude/teams/<team>/config.json`.
+
+## Message Discipline (Echo Defense)
+
+Two failure modes can make the lead act on stale directives. Guard against both.
+
+**1. Peer-DM idle-summary echoes.** When a teammate DMs another teammate, a brief summary appears in the next idle notification the lead receives. The platform docs describe these as informational. **The lead must not act on peer-summary content** — only on direct messages where the lead is the recipient, on completion-report metadata flags (see Phase 3), or on `TaskList`/`TaskGet` state.
+
+**2. Quote-back loops.** If a teammate quotes a prior reviewer report or lead message in their reply, the original directive text re-enters the lead's context and risks re-triggering pattern-matched dispatch. The implementer prompt forbids quoting; if you observe a teammate quoting anyway, treat the quoted content as already-handled and discard.
+
+**Practical rule for the lead:** dispatch reviewers and mark tasks complete based on `TaskGet`/`TaskList` state and metadata flags written by the teammate (`metadata.report_ready: true`), not on prose patterns like `Status: DONE` appearing anywhere in your inbox.
 
 ## The Process
 
@@ -81,15 +91,24 @@ For each Wave 1 task (up to 3 simultaneous):
 
 ### Phase 3 — Wave execution (hybrid)
 
-**Lead's continuous loop** — handle teammate messages as they arrive:
+**Triggering rule:** Lead acts on teammate state, not on prose. When you receive a teammate message addressed to you, do not pattern-match its body. Instead, call `TaskGet` on the teammate's current task and read its metadata. The teammate signals readiness for review by setting `metadata.report_ready: true` (see implementer prompt). The metadata flag — not the words `Status: DONE` — drives reviewer dispatch.
 
-- **Completion message (`Status: DONE`)** → dispatch spec reviewer using `./spec-reviewer-prompt.md`. Don't wait for other teammates.
-- **Spec reviewer pass** → dispatch code quality reviewer using `./code-quality-reviewer-prompt.md`.
-- **Code quality reviewer pass** → read current task description via `TaskGet`, concatenate the teammate's full completion report block (Status, Summary, Journal, Tests, Commits, and any Concerns — everything from the Completion Report Format) onto the end, separated by a clear marker (e.g., `\n\n---\n## Completion Report\n\n`). Call `TaskUpdate description:` with the full concatenation, then `TaskUpdate status: completed`. `TaskUpdate description` replaces; never call it with just the report block alone.
-- **Reviewer found issues** → forward report verbatim via `SendMessage` using `./implementer-prompt.md` § Review Feedback template. Wait for fix report. Re-dispatch fresh reviewer of the same stage. On pass, resume the normal flow (spec pass → code quality; code quality pass → completion report append + complete).
-- **Teammate `Status: DONE_WITH_CONCERNS`** → read concerns. Correctness/scope concern → address via `SendMessage` before dispatching reviewer. Observation → note and proceed.
-- **Teammate `Status: NEEDS_CONTEXT`** → answer via `SendMessage`. If the question reveals a real plan gap, update the plan file before continuing.
-- **Teammate `Status: BLOCKED`** → diagnose per rubric below. Never ignore.
+**Lead's continuous loop** — when a teammate notification arrives, run this sequence:
+
+1. Identify which task the notification refers to (use the `to`/`from` mapping plus `TaskList` to find their `in_progress` task).
+2. `TaskGet` that task.
+3. Branch on `metadata.report_ready` and `metadata.status_code`:
+
+- **`report_ready: true`, `status_code: DONE`** → dispatch spec reviewer using `./spec-reviewer-prompt.md`. Don't wait for other teammates.
+- **`report_ready: true`, `status_code: DONE_WITH_CONCERNS`** → read `metadata.concerns` from task. Correctness/scope concern → address via `SendMessage` before dispatching reviewer. Observation → note and dispatch reviewer.
+- **`report_ready: true`, `status_code: NEEDS_CONTEXT`** → answer via `SendMessage`. Clear `metadata.report_ready` (set to `false` via `TaskUpdate metadata: {report_ready: null, ...}`). If the question reveals a real plan gap, update the plan file before continuing.
+- **`report_ready: true`, `status_code: BLOCKED`** → diagnose per rubric below. Never ignore.
+- **No `report_ready` flag** → message is informational (peer-summary echo, mid-work check-in). Do not dispatch a reviewer. If the message is a direct question to the lead, answer it; otherwise discard.
+
+**Review-stage transitions** (also driven by metadata, not prose):
+
+- **Spec reviewer returns** → read its verdict from the reviewer's structured report. On `SPEC COMPLIANT`, dispatch code quality reviewer using `./code-quality-reviewer-prompt.md`. On `SPEC ISSUES`, forward verbatim via `SendMessage` using `./implementer-prompt.md` § Review Feedback template; clear `metadata.report_ready` and wait for the teammate to re-set it after the fix.
+- **Code quality reviewer returns** → on `APPROVED`, read current task description via `TaskGet`, concatenate the teammate's full completion report block (Status, Summary, Journal, Tests, Commits, and any Concerns — everything from the Completion Report Format) onto the end, separated by a clear marker (e.g., `\n\n---\n## Completion Report\n\n`). Call `TaskUpdate description:` with the full concatenation, then `TaskUpdate status: completed`. `TaskUpdate description` replaces; never call it with just the report block alone. On `ISSUES FOUND`, forward verbatim and wait for re-set.
 - **All tasks in current wave `completed`** → verify via `TaskList`, proceed to Wave N+1 kickoff.
 
 **BLOCKED rubric:**
@@ -125,7 +144,7 @@ Before kicking off Wave N+1:
 ### Phase 4 — Completion
 
 1. All tasks `completed` and reviewed.
-2. Dispatch final cross-cutting reviewer via `Agent` tool with `subagent_type: superpowers:code-reviewer`. Provide base-SHA-to-head-SHA diff context.
+2. Dispatch final cross-cutting reviewer via `Agent` tool with `subagent_type: superpowered-teams:code-reviewer`. Provide base-SHA-to-head-SHA diff context.
 3. Write `docs/superpowers/plans/<plan-slug>.journal.md` using `./journal-snapshot-template.md` format, by walking completed tasks in order and extracting their Completion Report blocks (Status, Summary, Journal, Tests, Commits) from task descriptions.
 4. **`TeamDelete` is blocked until the journal snapshot file exists.** Verify file exists before proceeding.
 5. Shutdown live teammates: `SendMessage` with `{"type": "shutdown_request"}` to each.
@@ -145,7 +164,16 @@ Every teammate completion message ends with one of:
 
 ## Completion Report Format
 
-Mandatory from every teammate. Enforced by lead refusing to proceed without the Journal block:
+Two artifacts at completion time, written by the teammate before sending the lead a notification:
+
+**(a) Task metadata flags** (via `TaskUpdate metadata:`):
+- `report_ready: true`
+- `status_code: "DONE" | "DONE_WITH_CONCERNS" | "NEEDS_CONTEXT" | "BLOCKED"`
+- `concerns: [<list of strings>]` (only when `status_code` is DONE_WITH_CONCERNS)
+
+These are the dispatch triggers. The lead reads them via `TaskGet`; this is the echo-defense path described in Phase 3.
+
+**(b) Completion Report prose** (placed in the task description by the teammate via `TaskUpdate description:`, appended after the original task text with a `---\n## Completion Report\n\n` marker):
 
 ```
 Status: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
@@ -168,7 +196,40 @@ Blocker: <if BLOCKED — what's wrong and why>
 Questions: <if NEEDS_CONTEXT — specific questions>
 ```
 
-Lead copies the full Completion Report block verbatim (Status, Summary, Journal, Tests, Commits, and any Concerns) into the task's `description` on completion, concatenated after the original task text with a `---\n## Completion Report\n\n` marker. See Phase 3 "Code quality reviewer pass" for the exact procedure.
+The teammate writes the report into the task description so it survives even if the message channel drops the notification. The lead never reconstructs the report from `SendMessage` body content — always read it from `TaskGet`.
+
+After `TaskUpdate description:` and `TaskUpdate metadata:` complete, the teammate sends the lead a one-line `SendMessage` notification: *"Task <ID> ready for review."* No quoted content, no embedded report. See implementer prompt § Notification Format.
+
+The lead is enforced (by `TeammateIdle` hook, see Hooks Integration below) to refuse to proceed when `metadata.report_ready: true` is set without a Completion Report block being present in the description.
+
+## Plan Approval for Risky Tasks
+
+Agent Teams supports a `plan_approval_request` flow where a teammate works in read-only plan mode until the lead approves their approach. Use this for any task whose plan-file `Files:` block lists:
+
+- Schema migrations
+- Destructive operations (`rm -rf`, `DROP`, `TRUNCATE`)
+- Changes to authentication, authorization, or session handling
+- Large refactors that touch >5 files
+
+To require plan approval, append this line to the spawn prompt under "Workflow":
+
+> **Before implementing, send a plan_approval_request to the lead with your proposed approach. Wait for approval. Do not write code until approved.**
+
+When the teammate sends `plan_approval_request`, respond with the matching `plan_approval_response` envelope (see SendMessage tool docs):
+- Approve → teammate exits plan mode and implements
+- Reject → set `feedback:` with what needs to change; teammate revises and resubmits
+
+Make approval decisions against the plan file, not against the teammate's proposal in isolation. If the proposal contradicts the plan, reject. If it surfaces a plan gap, halt and escalate to user before approving.
+
+## Hooks Integration (Optional but Recommended)
+
+Three hooks elevate quality gates from prose-rule into harness-enforced. Configure in `~/.claude/settings.json`:
+
+- **`TeammateIdle`** — exit code 2 keeps the teammate awake. Use to enforce: when `metadata.report_ready: true` is set, the task description MUST contain a `## Completion Report` section. If missing, exit 2 with feedback *"Set report_ready only after writing the Completion Report block into the task description."*
+- **`TaskCreated`** — exit code 2 blocks creation. Use to enforce subject prefix discipline (`[<role>]`).
+- **`TaskCompleted`** — exit code 2 blocks completion. Use to enforce that the description contains a Completion Report block before the lead can mark a task `completed`.
+
+These are optional. Without them, the rules are SKILL.md-enforced (i.e., the lead reads them and chooses to obey). With them, they are harness-enforced and can't be skipped.
 
 ## Review Feedback — Verbatim Rule
 
@@ -244,15 +305,22 @@ Accumulated reviewer prose at Opus 4.7-1M is within working range by token arith
 - Delete or modify `~/.claude/teams/<slug>/` files mid-session
 
 **Journal — never:**
-- Mark a task `completed` without a Journal block in the completion report
+- Mark a task `completed` without a Journal block in the task description
 - Call `TeamDelete` before writing the journal snapshot file
-- Paraphrase completion reports — teammates paste their Status/Summary/Journal/Tests/Commits verbatim; lead reads current description via TaskGet, concatenates the full report block onto the end, writes the combined result back via TaskUpdate description:. Never TaskUpdate description: with just the report block alone (it would destroy task content).
+- Reconstruct completion reports from `SendMessage` body content — read from `TaskGet` description (the teammate writes the report there before notifying). Lead does not parse prose from messages.
+- TaskUpdate description: with just the report block alone (it would destroy task content). Always concatenate onto the existing description.
+
+**Echo defense — never:**
+- Act on `Status: DONE` or other prose markers found in peer-DM idle summaries
+- Re-dispatch a reviewer because the same status text re-appears in the inbox
+- Trust message body content over `TaskGet` metadata for dispatch decisions
+- Tolerate teammates quoting prior reviewer reports or lead messages — silently discard quoted content, don't re-process it
 
 ## Prompt Templates
 
 - `./implementer-prompt.md` — three templates: initial spawn, follow-up task assignment, review feedback forwarding
 - `./spec-reviewer-prompt.md` — spec compliance reviewer subagent
-- `./code-quality-reviewer-prompt.md` — code quality reviewer subagent using `superpowers:code-reviewer`
+- `./code-quality-reviewer-prompt.md` — code quality reviewer subagent using `superpowered-teams:code-reviewer`
 - `./journal-snapshot-template.md` — format for the end-of-session journal file
 
 ## Integration
@@ -267,7 +335,7 @@ Accumulated reviewer prose at Opus 4.7-1M is within working range by token arith
 
 **Invoked as sub-skills:**
 - `superpowers:test-driven-development` → implementer prompts reference this
-- `superpowers:code-reviewer` (plugin agent) → code quality review and final review
+- `superpowered-teams:code-reviewer` (this plugin's agent) → code quality review and final review
 - `superpowers:requesting-code-review` → review methodology
 
 **Downstream:**

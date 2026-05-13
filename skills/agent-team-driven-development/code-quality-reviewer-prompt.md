@@ -1,6 +1,6 @@
 # Code Quality Reviewer Prompt Template
 
-Dispatch as a **fresh, one-shot subagent** (no `team_name`) using `superpowers:code-reviewer` agent type, for unbiased quality review.
+Dispatch as a **fresh, one-shot subagent** (no `team_name`) using `superpowered-teams:code-reviewer` agent type, for unbiased quality review.
 
 **Purpose:** Verify implementation is well-built — clean, tested, maintainable.
 
@@ -8,7 +8,7 @@ Dispatch as a **fresh, one-shot subagent** (no `team_name`) using `superpowers:c
 
 ```
 Agent tool:
-  subagent_type: superpowers:code-reviewer
+  subagent_type: superpowered-teams:code-reviewer
   description: "Code quality review: [<role>] Task N"
   prompt: |
     Review the implementation of [<role>] Task N: <task name>
