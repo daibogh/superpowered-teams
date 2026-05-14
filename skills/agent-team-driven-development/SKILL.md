@@ -11,7 +11,21 @@ Execute a team-format plan by orchestrating a team of persistent teammates (Agen
 
 **Announce at start:** "I'm using the agent-team-driven-development skill to execute this plan."
 
-**Requires:** `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in settings, Claude Code ≥ 2.1.32.
+**Requires:** Agent Teams primitives available in the running Claude Code — `TeamCreate`, `SendMessage`, `TaskCreate`, `TaskGet`, `TaskUpdate`, `TaskList`. See § Compatibility for the configuration this skill was authored against.
+
+## Compatibility
+
+CC-coupled assumptions live here. Update this section when any of these change; the rest of the skill should reference them rather than embedding values inline.
+
+| Assumption | As-of authoring | Brittleness |
+|---|---|---|
+| Experimental flag enabling Agent Teams | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in user settings | May be renamed or graduated out of experimental |
+| Minimum Claude Code version | 2.1.32 (Agent Teams introduced) | Tool surface and tool names may evolve |
+| Model tier (all roles: lead, teammates, reviewers) | Frontier Opus-tier with ≥1M-token context (Opus 4.7-1M at writing) | Newer Opus-family models will likely be available; pick the most capable in the same tier |
+| Team config path | `~/.claude/teams/<slug>/config.json` | Documentation only — skill behavior does not depend on reading this file |
+| Task-record metadata fields used for dispatch | `metadata.report_ready`, `metadata.status_code`, `metadata.concerns` | If CC's `TaskUpdate metadata` schema changes, Phase 3 dispatch logic must move with it |
+
+If a required primitive is unavailable at boot, halt and direct the user to `update-config` for settings edits. If a flag has been renamed or graduated, update this section before editing the rest of the skill.
 
 ## When to Use
 
@@ -26,13 +40,15 @@ Execute a team-format plan by orchestrating a team of persistent teammates (Agen
 
 ## Team Structure
 
-| Role | Count | Spawn mechanism | Persistence | Model |
-|---|---|---|---|---|
-| Lead (you) | 1 | Main session | Session | Opus 4.7-1M |
-| Implementation teammate | 1–3 simultaneous | `Agent` tool with `team_name` + `name` | Spawn-per-wave default, upgrade to full-session if ≥2 waves of work | Opus 4.7-1M |
-| Spec reviewer | Per task | `Agent` tool, no `team_name` | One-shot | Opus 4.7-1M |
-| Code quality reviewer | Per task | `Agent` tool, `subagent_type: superpowered-teams:code-reviewer` | One-shot | Opus 4.7-1M |
-| Final cross-cutting reviewer | 1 | `Agent` tool, `subagent_type: superpowered-teams:code-reviewer` | One-shot at completion | Opus 4.7-1M |
+All roles run on the same model tier — see § Compatibility for the tier specification and currency policy.
+
+| Role | Count | Spawn mechanism | Persistence |
+|---|---|---|---|
+| Lead (you) | 1 | Main session | Session |
+| Implementation teammate | 1–3 simultaneous | `Agent` tool with `team_name` + `name` | Spawn-per-wave default, upgrade to full-session if ≥2 waves of work |
+| Spec reviewer | Per task | `Agent` tool, no `team_name` | One-shot |
+| Code quality reviewer | Per task | `Agent` tool, `subagent_type: superpowered-teams:code-reviewer` | One-shot |
+| Final cross-cutting reviewer | 1 | `Agent` tool, `subagent_type: superpowered-teams:code-reviewer` | One-shot at completion |
 
 Implementation teammates are persistent (survive across waves, remember codebase). Reviewers are one-shot subagents (fresh context, no bias from watching code get written). The asymmetry is deliberate.
 
@@ -65,7 +81,7 @@ Two failure modes can make the lead act on stale directives. Guard against both.
 
 1. Read plan file end-to-end. Extract tasks, Specialists table, Waves, Dependency Graph, Lifetime Plan.
 2. Verify the plan's `> **For agentic workers:**` blockquote names `agent-team-driven-development`. **Scope the check to blockquote lines only** (lines beginning with `>`) — e.g., `grep -E "^>.*agent-team-driven-development" <planfile>`. A plan that merely mentions the skill name in prose (Goal/Architecture/Tech Stack/task text) must NOT pass this check; only the blockquote's named sub-skill counts. If the blockquote is absent or names a different skill (e.g., `superpowers:subagent-driven-development`, `superpowers:executing-plans`), halt: *"This plan was written for a different execution model — re-run `writing-plans-for-teams` or use the skill the blockquote names."*
-3. Verify environment: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, CC ≥ 2.1.32. Halt with remediation pointing to `update-config` skill if not set.
+3. Verify environment matches § Compatibility (experimental flag for Agent Teams in user settings, CC version meeting the documented minimum, required primitives available). Halt with remediation pointing to `update-config` skill if any prerequisite is missing.
 4. Verify git worktree if the plan modifies code (skip for docs-only plans). Halt if on `main`/`master` without explicit user consent.
 5. `TeamCreate` with `team_name: <plan-slug>` (derived from plan filename), `agent_type: "lead"`, and `description` set to plan's Goal line. Verify team creation succeeded before proceeding; on failure, apply the slug-collision recovery from Error Handling.
 6. `TaskCreate` for every plan task, in plan order:
@@ -116,7 +132,7 @@ For each Wave 1 task (up to 3 simultaneous):
 | Cause | Recovery |
 |---|---|
 | Missing context the plan didn't provide | Answer via `SendMessage`, teammate continues |
-| Reasoning limitation | N/A at Opus 4.7-1M — escalate as plan-too-large or plan-wrong |
+| Reasoning limitation | Not expected at the documented model tier (§ Compatibility) — escalate as plan-too-large or plan-wrong |
 | Task too large | Split task in plan file, `TaskCreate` subtasks with dependencies, shut down teammate, respawn for a subtask |
 | Plan is wrong | Halt. Surface to user. Do not attempt plan rewrite autonomously. |
 
@@ -229,6 +245,8 @@ Three hooks elevate quality gates from prose-rule into harness-enforced. Configu
 - **`TaskCreated`** — exit code 2 blocks creation. Use to enforce subject prefix discipline (`[<role>]`).
 - **`TaskCompleted`** — exit code 2 blocks completion. Use to enforce that the description contains a Completion Report block before the lead can mark a task `completed`.
 
+These hook event names are CC-coupled — see § Compatibility. If the harness renames a hook event, update there and the references here will still resolve to the right primitive.
+
 These are optional. Without them, the rules are SKILL.md-enforced (i.e., the lead reads them and chooses to obey). With them, they are harness-enforced and can't be skipped.
 
 ## Review Feedback — Verbatim Rule
@@ -237,7 +255,7 @@ Lead forwards reviewer reports to teammates literally. No paraphrasing.
 
 Use `./implementer-prompt.md` § Review Feedback template.
 
-Accumulated reviewer prose at Opus 4.7-1M is within working range by token arithmetic. There is no reliable self-detection mechanism for context quality degradation. If the user observes a teammate making mistakes inconsistent with their earlier work, the user should prompt a controlled refresh via shutdown + respawn.
+Accumulated reviewer prose is within working range at the documented model tier (§ Compatibility) by token arithmetic. There is no reliable self-detection mechanism for context quality degradation. If the user observes a teammate making mistakes inconsistent with their earlier work, the user should prompt a controlled refresh via shutdown + respawn.
 
 ## Error Handling and Edge Cases
 

@@ -59,13 +59,15 @@ Two user-level skills installed at `~/.claude/skills/`:
 
 ### Role matrix
 
-| Role | Count | Spawn mechanism | Lifetime | Model |
-|---|---|---|---|---|
-| Lead | 1 | Main session | Session lifetime | Opus 4.7-1M |
-| Specialist implementer | 1–3 simultaneous | `Agent` tool with `team_name` + `name` | S3: spawn-per-wave default, upgrade to full-session if ≥2 waves of work | Opus 4.7-1M |
-| Spec reviewer | Per task | `Agent` tool, no `team_name` | One-shot | Opus 4.7-1M |
-| Code quality reviewer | Per task | `Agent` tool, `subagent_type: superpowered-teams:code-reviewer` | One-shot | Opus 4.7-1M |
-| Final cross-cutting reviewer | 1 | `Agent` tool, `subagent_type: superpowered-teams:code-reviewer` | One-shot at completion | Opus 4.7-1M |
+All roles run on the same model tier (frontier Opus-tier with ≥1M-token context — Opus 4.7-1M at design time). Currency policy lives in SKILL.md § Compatibility.
+
+| Role | Count | Spawn mechanism | Lifetime |
+|---|---|---|---|
+| Lead | 1 | Main session | Session lifetime |
+| Specialist implementer | 1–3 simultaneous | `Agent` tool with `team_name` + `name` | S3: spawn-per-wave default, upgrade to full-session if ≥2 waves of work |
+| Spec reviewer | Per task | `Agent` tool, no `team_name` | One-shot |
+| Code quality reviewer | Per task | `Agent` tool, `subagent_type: superpowered-teams:code-reviewer` | One-shot |
+| Final cross-cutting reviewer | 1 | `Agent` tool, `subagent_type: superpowered-teams:code-reviewer` | One-shot at completion |
 
 **Key asymmetry:** Implementers are teammates (persistent, survive across waves, remember codebase); reviewers are subagents (fresh context, no accumulated bias from watching code get written). This mirrors bok's original insight.
 
@@ -209,7 +211,7 @@ On failure: announce reason to user, invoke `superpowers:writing-plans` as sub-s
 
 1. Read plan file end-to-end, extract tasks, Specialists, Waves, Dependency Graph, Lifetime Plan.
 2. Verify blockquote names `agent-team-driven-development`. Halt otherwise.
-3. Verify environment: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, CC ≥ 2.1.32. Halt with remediation if not.
+3. Verify environment matches SKILL.md § Compatibility (Agent Teams flag enabled, CC at or above the documented minimum, required primitives available). Halt with remediation if not.
 4. Verify git worktree (unless user explicitly authorized `main`/`master`).
 5. `TeamCreate` with `team_name: <plan-slug>` and `description: <plan Goal>`.
 6. `TaskCreate` for every plan task with subject prefix `[<role>] Task N: <name>` and full description.
@@ -287,7 +289,7 @@ Every teammate completion message ends with one of four statuses:
 | Cause | Recovery |
 |---|---|
 | Missing context the plan didn't provide | Lead answers via `SendMessage`, teammate continues |
-| Reasoning limitation | N/A at Opus 4.7-1M — escalate as plan-too-large or plan-wrong |
+| Reasoning limitation | Not expected at the documented model tier (SKILL.md § Compatibility) — escalate as plan-too-large or plan-wrong |
 | Task too large | Lead splits task in plan, creates subtasks with dependencies, shuts down teammate, respawns |
 | Plan is wrong | Lead halts, surfaces to user, does not attempt plan rewrite autonomously |
 
@@ -339,7 +341,7 @@ SendMessage:
     with updated Status block. Do NOT mark task complete — only lead does that.
 ```
 
-Lead does not paraphrase reviewer findings. Accumulated reviewer prose at Opus 4.7-1M is within working range by token arithmetic. There is no reliable self-detection mechanism for context quality degradation. If the user observes a teammate making mistakes inconsistent with their earlier work, the user prompts controlled refresh via shutdown + respawn.
+Lead does not paraphrase reviewer findings. Accumulated reviewer prose is within working range at the documented model tier (SKILL.md § Compatibility) by token arithmetic. There is no reliable self-detection mechanism for context quality degradation. If the user observes a teammate making mistakes inconsistent with their earlier work, the user prompts controlled refresh via shutdown + respawn.
 
 ---
 
@@ -493,7 +495,7 @@ C3-original had the lead write journal entries to a file per task — many forge
 
 ### Why verbatim review pass-through
 
-Paraphrase drift is a correctness risk (lead summarizes reviewer findings inaccurately); context accumulation at Opus 4.7-1M is not a real capacity risk (reviewer prose occupies ~1% of working window). Correctness beats efficiency; keep verbatim.
+Paraphrase drift is a correctness risk (lead summarizes reviewer findings inaccurately); context accumulation at the documented model tier (SKILL.md § Compatibility) is not a real capacity risk (reviewer prose occupies ~1% of working window). Correctness beats efficiency; keep verbatim.
 
 ### Why no context-rot refresh heuristic
 
