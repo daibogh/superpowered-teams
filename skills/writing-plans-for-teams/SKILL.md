@@ -27,6 +27,8 @@ Assume implementers are skilled developers with zero codebase context. Document 
 
 ## Fitness Check
 
+**Pre-check (shape):** before the four-criterion gate, ask one question. Is this mechanical fan-out over independent units with no cross-task deliberation (apply the same transform to N files, score N candidates against one rubric, run parallel verifiers, extract structured data from N documents)? If yes, this is **Workflow-shaped**, not team-shaped: a persistent specialist team adds coordination overhead it cannot repay when the units never talk to each other, and a serial subagent chain wastes the parallelism. Recommend the `Workflow` tool instead (and note that under ultracode the session will tend to author one by default). This stays advisory: surface the recommendation in your announce text, do not hand off to a third skill. A genuine team-shaped plan (specialists carrying context across waves, deliberating) proceeds to the four-criterion gate below.
+
 All four criteria must hold. If ANY fails, hand off.
 
 | Criterion | Threshold |

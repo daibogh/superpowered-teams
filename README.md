@@ -20,14 +20,23 @@ Together they let a single `/brainstorm` conversation fan out to a team when the
 | 2+ independent one-shot tasks, no shared state | `superpowers:dispatching-parallel-agents` |
 | Serial plan, one role, tight dependency chain | `superpowers:subagent-driven-development` |
 | 4+ tasks across 2+ waves with role specialization and cross-task context | **`superpowered-teams:agent-team-driven-development`** |
+| Mechanical fan-out / map-reduce over independent units, no inter-agent talk | the **Workflow** tool (not a skill; see next section) |
 
-The fitness gate makes the choice automatic. You don't have to decide.
+The fitness gate makes the choice automatic among the skill rows. You don't have to decide.
+
+## Agent Teams vs Workflows
+
+Dynamic Workflows (GA in Claude Code 2.1.154) are a distinct orchestration primitive, not a competitor to this plugin. A Workflow is a deterministic JS script (globals: `agent`, `parallel`, `pipeline`, `phase`, `log`, `budget`, `workflow`) that fans out mostly one-shot subagents for map/reduce style work, optionally with schema-forced structured output and a shared token budget. Workflow subagents do not message each other.
+
+Use this plugin (Agent Teams) when the work needs persistent specialists that carry codebase context across waves, deliberate via `SendMessage`, and share a live task list. Use a Workflow when the shape is mechanical fan-out over independent units with no need for agents to talk.
+
+They compose, and this plugin is itself a hybrid: implementer roles are persistent teammates, while the spec, code-quality, and final reviewers are one-shot subagents (the same shape a Workflow orchestrates). A Workflow can even invoke this plugin's reviewer with `agent(prompt, {agentType: "superpowered-teams:code-reviewer"})`, which resolves from the same active-agent registry the `Agent` tool uses. The plugin owns the deliberation and persistence half. It is not a Workflow substitute.
 
 ## Requirements
 
-- Claude Code **≥ 2.1.32**
+- Claude Code **≥ 2.1.32** (hard floor: Agent Teams introduced). **Recommended ≥ 2.1.147** so `CLAUDE_CODE_SUBAGENT_MODEL` applies to teammate processes, which is what keeps teammates on your intended Opus tier.
 - `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `~/.claude/settings.json`
-- [**superpowers**](https://github.com/obra/superpowers) plugin installed (hard dependency — see below)
+- [**superpowers**](https://github.com/obra/superpowers) plugin installed (hard dependency, see below)
 
 ### Why superpowers is required
 
@@ -72,10 +81,12 @@ Not yet submitted to the `claude-plugins-official` marketplace. Use Option A for
 **The plugin's skills are underused without this step.** By default `superpowers:brainstorming` hands off to `superpowers:writing-plans` at its terminal state, which skips the team fitness check entirely. Add the snippet from [`claude-md-snippet.md`](./claude-md-snippet.md) to your global CLAUDE.md to route brainstorming through `writing-plans-for-teams` instead:
 
 ```bash
-cat ~/.claude/plugins/cache/<marketplace>/superpowered-teams/*/claude-md-snippet.md >> ~/.claude/CLAUDE.md
+cat ~/.claude/plugins/user/superpowered-teams/claude-md-snippet.md >> ~/.claude/CLAUDE.md
 ```
 
-Or copy the contents of `claude-md-snippet.md` manually. The snippet is intentionally a user-instruction-priority override — it sits at the top of the instruction stack, above any plugin skill content, and can be removed to disable the integration.
+(That path matches the Option A direct-clone install above. If you instead installed via a marketplace, the snippet lives under `~/.claude/plugins/cache/<marketplace>/superpowered-teams/*/claude-md-snippet.md`.)
+
+Or copy the contents of `claude-md-snippet.md` manually. The snippet is intentionally a user-instruction-priority override: it sits at the top of the instruction stack, above any plugin skill content, and can be removed to disable the integration.
 
 ### Verify
 

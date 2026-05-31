@@ -20,8 +20,8 @@ CC-coupled assumptions live here. Update this section when any of these change; 
 | Assumption | As-of authoring | Brittleness |
 |---|---|---|
 | Experimental flag enabling Agent Teams | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in user settings | May be renamed or graduated out of experimental |
-| Minimum Claude Code version | 2.1.32 (Agent Teams introduced) | Tool surface and tool names may evolve |
-| Model tier (all roles: lead, teammates, reviewers) | Frontier Opus-tier with ≥1M-token context (Opus 4.7-1M at writing) | Newer Opus-family models will likely be available; pick the most capable in the same tier |
+| Minimum Claude Code version | 2.1.32 hard floor (Agent Teams introduced); 2.1.147 recommended (so `CLAUDE_CODE_SUBAGENT_MODEL` reaches teammate processes) | Tool surface and tool names may evolve |
+| Model tier (all roles: lead, teammates, reviewers) | Frontier Opus-tier with ≥1M-token context (Opus 4.8-1M at writing) | Newer Opus-family models will likely be available; pick the most capable in the same tier |
 | Team config path | `~/.claude/teams/<slug>/config.json` | Documentation only — skill behavior does not depend on reading this file |
 | Task-record metadata fields used for dispatch | `metadata.report_ready`, `metadata.status_code`, `metadata.concerns` | If CC's `TaskUpdate metadata` schema changes, Phase 3 dispatch logic must move with it |
 
@@ -37,6 +37,7 @@ If a required primitive is unavailable at boot, halt and direct the user to `upd
 **Don't use when:**
 - Plan was written by `superpowers:writing-plans` (use `superpowers:subagent-driven-development` instead)
 - Plan is serial or tightly coupled (fitness check should have routed you elsewhere)
+- The work is mechanical fan-out over independent units with no inter-agent deliberation (map/reduce, parallel verify, schema-forced extraction). That is Workflow-shaped: use the `Workflow` tool, not a team. This skill is the persistence and deliberation primitive; the two compose (a Workflow can call this plugin's `superpowered-teams:code-reviewer` agent), but team orchestration is lead-session-driven, not workflow-driven. Under ultracode, a session may author such a Workflow by default; that does not replace this skill for genuine team-shaped plans.
 
 ## Team Structure
 
