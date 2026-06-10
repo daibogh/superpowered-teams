@@ -1,0 +1,14 @@
+{
+  "name": "daibogh-plugins",
+  "owner": {
+    "name": "daibogh"
+  },
+  "description": "Personal plugin marketplace for daibogh's Claude Code plugins.",
+  "plugins": [
+    {
+      "name": "superpowered-teams",
+      "source": "./",
+      "description": "Parallel team execution for superpowers plans via Claude Code Agent Teams. Adds a team fitness check at plan time and a persistent-specialist orchestrator at execution time."
+    }
+  ]
+}
